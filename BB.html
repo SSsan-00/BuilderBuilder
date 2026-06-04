@@ -33,14 +33,13 @@
     }
 
     button,
-    input,
-    textarea {
+    input {
       font: inherit;
     }
 
     .app {
       display: grid;
-      grid-template-columns: minmax(330px, 440px) minmax(0, 1fr);
+      grid-template-columns: minmax(340px, 480px) minmax(0, 1fr);
       min-height: 100vh;
     }
 
@@ -88,14 +87,14 @@
       margin-bottom: 17px;
     }
 
-    label {
+    label,
+    .group-label {
       color: var(--muted);
       font-size: 0.86rem;
       font-weight: 750;
     }
 
-    input,
-    textarea {
+    input {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -105,19 +104,9 @@
       outline: none;
     }
 
-    input:focus,
-    textarea:focus {
+    input:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgb(15 118 110 / 14%);
-    }
-
-    textarea {
-      min-height: 180px;
-      resize: vertical;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-      font-size: 0.9rem;
-      line-height: 1.55;
-      tab-size: 2;
     }
 
     .hint {
@@ -125,6 +114,58 @@
       color: var(--muted);
       font-size: 0.8rem;
       line-height: 1.45;
+    }
+
+    .parameters {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 17px;
+    }
+
+    .parameter-head,
+    .parameter-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .parameter-head {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding-right: 2px;
+    }
+
+    .parameter-row input {
+      min-width: 0;
+    }
+
+    .icon-button {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 1.12rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus {
+      border-color: var(--accent);
+      color: var(--accent-strong);
+      outline: none;
+    }
+
+    .add-row {
+      justify-self: start;
+      color: var(--accent-strong);
     }
 
     .actions {
@@ -143,11 +184,6 @@
       cursor: pointer;
       font-weight: 800;
       padding: 10px 14px;
-    }
-
-    .button.secondary {
-      background: transparent;
-      color: var(--accent-strong);
     }
 
     .preview {
@@ -261,6 +297,16 @@
         min-height: 70vh;
       }
     }
+
+    @media (max-width: 520px) {
+      .parameter-head {
+        display: none;
+      }
+
+      .parameter-row {
+        grid-template-columns: 1fr 1fr 42px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -280,26 +326,24 @@
       </div>
 
       <div class="field">
-        <label for="namespaceName">名前空間</label>
-        <input id="namespaceName" value="Sample.Tests" autocomplete="off">
+        <label for="displayNameTemplate">DisplayName</label>
+        <input id="displayNameTemplate" value="{method}: {parameters}" autocomplete="off">
+        <p class="hint">空欄可。`{method}`、`{parameters}`、`{amount}` のようなパラメータ名を使えます。</p>
       </div>
 
-      <div class="field">
-        <label for="parameters">パラメータ</label>
-        <textarea id="parameters" spellcheck="false">amount: decimal
-taxRate: decimal
-roundingMode: MidpointRounding</textarea>
-        <p class="hint">`name: Type` または `Type name`</p>
-      </div>
-
-      <div class="field">
-        <label for="displayPrefix">DisplayName接頭辞</label>
-        <input id="displayPrefix" value="{method}" autocomplete="off">
+      <div class="parameters" aria-label="パラメータ">
+        <div class="group-label">パラメータ</div>
+        <div class="parameter-head" aria-hidden="true">
+          <div>パラメータ名</div>
+          <div>型</div>
+          <div></div>
+        </div>
+        <div id="parameterList"></div>
+        <button class="icon-button add-row" id="addParameter" type="button" title="パラメータを追加" aria-label="パラメータを追加">+</button>
       </div>
 
       <div class="actions">
-        <button class="button" id="copySnippet" type="button">C#をコピー</button>
-        <button class="button secondary" id="downloadSnippet" type="button">C#を保存</button>
+        <button class="button" id="copySnippet" type="button">スニペットをコピー</button>
       </div>
     </section>
 
@@ -324,15 +368,20 @@ roundingMode: MidpointRounding</textarea>
 
   <script>
     const functionNameInput = document.querySelector("#functionName");
-    const namespaceNameInput = document.querySelector("#namespaceName");
-    const parametersInput = document.querySelector("#parameters");
-    const displayPrefixInput = document.querySelector("#displayPrefix");
+    const displayNameTemplateInput = document.querySelector("#displayNameTemplate");
+    const parameterList = document.querySelector("#parameterList");
+    const addParameterButton = document.querySelector("#addParameter");
     const previewMeta = document.querySelector("#previewMeta");
     const previewCode = document.querySelector("#previewCode");
     const snippetTitle = document.querySelector("#snippetTitle");
     const status = document.querySelector("#status");
     const copyButton = document.querySelector("#copySnippet");
-    const downloadButton = document.querySelector("#downloadSnippet");
+
+    let parameterRows = [
+      { name: "amount", type: "decimal" },
+      { name: "taxRate", type: "decimal" },
+      { name: "roundingMode", type: "MidpointRounding" }
+    ];
 
     const csharpKeywords = new Set([
       "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
@@ -359,13 +408,6 @@ roundingMode: MidpointRounding</textarea>
       return csharpKeywords.has(prefixed) ? `@${prefixed}` : prefixed;
     };
 
-    const sanitizeNamespace = (value) => value
-      .trim()
-      .split(".")
-      .map((part) => sanitizeIdentifier(part, "Tests").replace(/^@/, ""))
-      .filter(Boolean)
-      .join(".");
-
     const toPascalCase = (value, fallback) => {
       const safe = sanitizeIdentifier(value, fallback).replace(/^@/, "");
       return safe
@@ -385,48 +427,16 @@ roundingMode: MidpointRounding</textarea>
       return value.split("\n").map((line) => line ? `${padding}${line}` : line).join("\n");
     };
 
-    const parseParameterLine = (line) => {
-      const clean = line.trim().replace(/[;,]$/, "");
-      if (!clean) {
-        return null;
-      }
-
-      const colonMatch = clean.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)$/);
-      if (colonMatch) {
-        return {
-          name: sanitizeIdentifier(colonMatch[1], "value"),
-          type: colonMatch[2].trim()
-        };
-      }
-
-      const commaMatch = clean.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(.+)$/);
-      if (commaMatch) {
-        return {
-          name: sanitizeIdentifier(commaMatch[1], "value"),
-          type: commaMatch[2].trim()
-        };
-      }
-
-      const typeFirstMatch = clean.match(/^(.+?)\s+([A-Za-z_][A-Za-z0-9_]*)$/);
-      if (typeFirstMatch) {
-        return {
-          name: sanitizeIdentifier(typeFirstMatch[2], "value"),
-          type: typeFirstMatch[1].trim()
-        };
-      }
-
-      return {
-        name: sanitizeIdentifier(clean, "value"),
-        type: "object"
-      };
-    };
-
-    const parseParameters = () => {
+    const uniqueParameters = (rows) => {
       const used = new Map();
-      return parametersInput.value
-        .split("\n")
-        .map(parseParameterLine)
-        .filter(Boolean)
+      return rows
+        .map((row, index) => ({
+          rawName: row.name.trim(),
+          rawType: row.type.trim(),
+          name: sanitizeIdentifier(row.name, `value${index + 1}`),
+          type: row.type.trim() || "object"
+        }))
+        .filter((parameter) => parameter.rawName || parameter.rawType)
         .map((parameter) => {
           const count = used.get(parameter.name) || 0;
           used.set(parameter.name, count + 1);
@@ -460,45 +470,51 @@ roundingMode: MidpointRounding</textarea>
       return "default";
     };
 
+    const escapeCsharpString = (value) => value
+      .replaceAll("\\", "\\\\")
+      .replaceAll("\"", "\\\"");
+
     const methodArguments = (parameters) => parameters
       .map((parameter) => `testCase.${toPascalCase(parameter.name, "Value")}`)
       .join(",\n");
 
     const builderChain = (parameters, builderClassName) => {
       const calls = parameters
-        .map((parameter) => `.With${toPascalCase(parameter.name, "Value")}(${defaultValueFor(parameter.type)})`)
-        .join("\n");
-      return `new ${builderClassName}()\n${indent(calls, 4)}\n    .Build()`;
+        .map((parameter) => `.With${toPascalCase(parameter.name, "Value")}(${defaultValueFor(parameter.type)})`);
+      if (!calls.length) {
+        return `new ${builderClassName}()\n    .Build()`;
+      }
+
+      return `new ${builderClassName}()\n${indent(calls.join("\n"), 4)}\n    .Build()`;
     };
 
-    const createDisplayNameExpression = (parameters, methodName, displayPrefix) => {
-      const prefix = (displayPrefix || "{method}").replaceAll("{method}", methodName);
-      const values = parameters
+    const displayNameReturnStatement = (parameters, methodName) => {
+      const rawTemplate = displayNameTemplateInput.value;
+      if (!rawTemplate) {
+        return "return \"\";";
+      }
+
+      const parameterSummary = parameters
         .map((parameter) => `${parameter.name}={${toPrivateFieldName(parameter.name)}}`)
         .join(", ");
-      const raw = values ? `${prefix}: ${values}` : prefix;
-      return raw.replaceAll("\"", "\\\"");
+      let expression = rawTemplate
+        .replaceAll("{method}", methodName)
+        .replaceAll("{parameters}", parameterSummary);
+      parameters.forEach((parameter) => {
+        expression = expression.replaceAll(`{${parameter.name}}`, `{${toPrivateFieldName(parameter.name)}}`);
+      });
+
+      return `return $"${escapeCsharpString(expression)}";`;
     };
 
     const generateCode = () => {
       const methodName = sanitizeIdentifier(functionNameInput.value, "TargetMethod");
       const methodPascal = toPascalCase(methodName, "TargetMethod");
-      const namespaceName = sanitizeNamespace(namespaceNameInput.value);
-      const parameters = parseParameters();
-      const testClassName = `${methodPascal}Tests`;
+      const parameters = uniqueParameters(parameterRows);
       const caseClassName = `${methodPascal}Case`;
       const builderClassName = `${methodPascal}CaseBuilder`;
       const dataMethodName = `${methodPascal}Data`;
       const displayNameMethodName = `Get${methodPascal}DisplayName`;
-      const displayNameExpression = createDisplayNameExpression(parameters, methodName, displayPrefixInput.value);
-
-      const usingLines = [
-        "using Microsoft.VisualStudio.TestTools.UnitTesting;",
-        "using System;",
-        "using System.Collections.Generic;",
-        "using System.Reflection;"
-      ];
-
       const parameterProperties = parameters.map((parameter) => {
         const propertyName = toPascalCase(parameter.name, "Value");
         return `public ${parameter.type} ${propertyName} { get; }`;
@@ -525,98 +541,87 @@ roundingMode: MidpointRounding</textarea>
         .join(", ");
       const callArguments = methodArguments(parameters);
       const methodCall = callArguments
-        ? `${methodName}(\n${indent(callArguments, 12)});`
+        ? `${methodName}(\n${indent(callArguments, 8)});`
         : `${methodName}();`;
       const dataCase = builderChain(parameters, builderClassName);
+      const displayNameStatement = displayNameReturnStatement(parameters, methodName);
       const parameterSummary = parameters.length
         ? parameters.map((parameter) => `${parameter.name}: ${parameter.type}`).join(", ")
         : "パラメータなし";
+      const propertyBlock = parameterProperties ? `${indent(parameterProperties, 4)}\n` : "";
+      const fieldBlock = fields ? `${indent(fields, 4)}\n` : "";
+      const withMethodBlock = withMethods ? `\n${indent(withMethods, 4)}\n` : "";
 
-      const testClassCode = `[TestClass]
-public sealed class ${testClassName}
+      const code = `public static IEnumerable<object[]> ${dataMethodName}()
 {
-    public static IEnumerable<object[]> ${dataMethodName}()
+    yield return Case(
+${indent(dataCase, 8)});
+}
+
+public static string ${displayNameMethodName}(MethodInfo methodInfo, object[] data)
+{
+    if (data.Length > 0 && data[0] is ${caseClassName} testCase)
     {
-        yield return Case(
-${indent(dataCase, 12)});
+        return testCase.DisplayName;
     }
 
-    public static string ${displayNameMethodName}(MethodInfo methodInfo, object[] data)
-    {
-        if (data.Length > 0 && data[0] is ${caseClassName} testCase)
-        {
-            return $"{methodInfo.Name}: {testCase.DisplayName}";
-        }
+    return methodInfo.Name;
+}
 
-        return methodInfo.Name;
+[TestMethod]
+[DynamicData(nameof(${dataMethodName}), DynamicDataSourceType.Method, DynamicDataDisplayName = nameof(${displayNameMethodName}))]
+public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
+{
+    var actual = ${methodCall}
+
+    Assert.Fail("TODO: expected valueを検証してください。");
+}
+
+private static object[] Case(${caseClassName} testCase)
+{
+    return new object[] { testCase };
+}
+
+private sealed class ${caseClassName}
+{
+${propertyBlock}    public string DisplayName { get; }
+
+    public ${caseClassName}(${constructorParameters})
+    {
+${indent(constructorAssignments, 8)}
+    }
+}
+
+private sealed class ${builderClassName}
+{
+${fieldBlock}    private bool _hasDisplayName;
+    private string _displayName = "";
+${withMethodBlock}
+    public ${builderClassName} WithDisplayName(string value)
+    {
+        _displayName = value;
+        _hasDisplayName = true;
+        return this;
     }
 
-    [TestMethod]
-    [DynamicData(nameof(${dataMethodName}), DynamicDataSourceType.Method, DynamicDataDisplayName = nameof(${displayNameMethodName}))]
-    public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
+    public ${caseClassName} Build()
     {
-        var actual = ${methodCall}
-
-        Assert.Fail("TODO: expected valueを検証してください。");
+        var displayName = _hasDisplayName
+            ? _displayName
+            : CreateDisplayName();
+        return new ${caseClassName}(${buildArguments});
     }
 
-    private static object[] Case(${caseClassName} testCase)
+    private string CreateDisplayName()
     {
-        return new object[] { testCase };
+        ${displayNameStatement}
     }
-
-    private static object ${methodName}(${parameters.map((parameter) => `${parameter.type} ${parameter.name}`).join(", ")})
-    {
-        throw new NotImplementedException();
-    }
-
-    public sealed class ${caseClassName}
-    {
-${indent(parameterProperties, 8)}
-        public string DisplayName { get; }
-
-        public ${caseClassName}(${constructorParameters})
-        {
-${indent(constructorAssignments, 12)}
-        }
-    }
-
-    public sealed class ${builderClassName}
-    {
-${indent(fields, 8)}
-        private string _displayName = "";
-
-${indent(withMethods, 8)}
-
-        public ${builderClassName} WithDisplayName(string value)
-        {
-            _displayName = value;
-            return this;
-        }
-
-        public ${caseClassName} Build()
-        {
-            var displayName = string.IsNullOrWhiteSpace(_displayName)
-                ? CreateDisplayName()
-                : _displayName;
-            return new ${caseClassName}(${buildArguments});
-        }
-
-        private string CreateDisplayName()
-        {
-            return $"${displayNameExpression}";
-        }
-    }
-}`;
-
-      const code = `${usingLines.join("\n")}
-${namespaceName ? `\nnamespace ${namespaceName}\n{\n${indent(testClassCode, 4)}\n}\n` : `\n${testClassCode}\n`}`;
+}
+`;
 
       return {
         code,
         methodPascal,
-        testClassName,
-        caseClassName,
         parameterSummary
       };
     };
@@ -631,41 +636,120 @@ ${namespaceName ? `\nnamespace ${namespaceName}\n{\n${indent(testClassCode, 4)}\
       }, 2400);
     };
 
+    const renderParameterRows = () => {
+      parameterList.textContent = "";
+      parameterRows.forEach((parameter, index) => {
+        const row = document.createElement("div");
+        row.className = "parameter-row";
+
+        const nameInput = document.createElement("input");
+        nameInput.value = parameter.name;
+        nameInput.placeholder = "amount";
+        nameInput.autocomplete = "off";
+        nameInput.ariaLabel = "パラメータ名";
+        nameInput.dataset.index = String(index);
+        nameInput.dataset.field = "name";
+
+        const typeInput = document.createElement("input");
+        typeInput.value = parameter.type;
+        typeInput.placeholder = "decimal";
+        typeInput.autocomplete = "off";
+        typeInput.ariaLabel = "型";
+        typeInput.dataset.index = String(index);
+        typeInput.dataset.field = "type";
+
+        const removeButton = document.createElement("button");
+        removeButton.className = "icon-button";
+        removeButton.type = "button";
+        removeButton.textContent = "-";
+        removeButton.title = "パラメータを削除";
+        removeButton.ariaLabel = "パラメータを削除";
+        removeButton.dataset.index = String(index);
+
+        row.append(nameInput, typeInput, removeButton);
+        parameterList.append(row);
+      });
+    };
+
     const render = () => {
       const result = generateCode();
       previewCode.textContent = result.code;
-      snippetTitle.textContent = `${result.testClassName}.cs`;
+      snippetTitle.textContent = `${result.methodPascal} DynamicData members`;
       previewMeta.textContent = result.parameterSummary;
+    };
+
+    const copyText = async (value) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        return;
+      }
+
+      const textArea = document.createElement("textarea");
+      textArea.value = value;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.append(textArea);
+      textArea.focus();
+      textArea.select();
+      const copied = document.execCommand("copy");
+      textArea.remove();
+      if (!copied) {
+        throw new Error("Clipboard copy failed");
+      }
     };
 
     const copySnippet = async () => {
       try {
-        await navigator.clipboard.writeText(generateCode().code);
+        await copyText(generateCode().code);
         setStatus("コピーしました");
       } catch (error) {
         setStatus("コピーできませんでした", true);
       }
     };
 
-    const downloadSnippet = () => {
-      const result = generateCode();
-      const blob = new Blob([result.code], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `${result.testClassName}.cs`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setStatus("保存しました");
-    };
+    parameterList.addEventListener("input", (event) => {
+      const target = event.target;
+      const index = Number(target.dataset.index);
+      const field = target.dataset.field;
+      if (!Number.isInteger(index) || !field) {
+        return;
+      }
 
-    [functionNameInput, namespaceNameInput, parametersInput, displayPrefixInput].forEach((input) => {
-      input.addEventListener("input", render);
+      parameterRows[index][field] = target.value;
+      render();
     });
 
-    copyButton.addEventListener("click", copySnippet);
-    downloadButton.addEventListener("click", downloadSnippet);
+    parameterList.addEventListener("click", (event) => {
+      const target = event.target.closest("button");
+      if (!target) {
+        return;
+      }
 
+      const index = Number(target.dataset.index);
+      if (!Number.isInteger(index)) {
+        return;
+      }
+
+      parameterRows.splice(index, 1);
+      if (!parameterRows.length) {
+        parameterRows.push({ name: "", type: "" });
+      }
+
+      renderParameterRows();
+      render();
+    });
+
+    addParameterButton.addEventListener("click", () => {
+      parameterRows.push({ name: "", type: "" });
+      renderParameterRows();
+      render();
+    });
+
+    functionNameInput.addEventListener("input", render);
+    displayNameTemplateInput.addEventListener("input", render);
+    copyButton.addEventListener("click", copySnippet);
+
+    renderParameterRows();
     render();
   </script>
 </body>
