@@ -42,7 +42,7 @@ CalculatePrice: amount=0, taxRate=0, roundingMode=ToEven
 生成スニペットには次の要素が含まれます。
 
 - `public static IEnumerable<object[]> XxxData()`
-- `public static string GetXxxDisplayName(MethodInfo methodInfo, object[] data)`
+- `public static string GetXxxDisplayName(MethodInfo _, object[] data)`
 - `[TestMethod]` と `[DynamicData(...)]`
 - `private sealed class XxxCase`
 - `private sealed class XxxCaseBuilder`

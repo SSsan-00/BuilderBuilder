@@ -535,14 +535,9 @@ ${indent(dataCase, 8)}
     };
 }
 
-public static string ${displayNameMethodName}(MethodInfo methodInfo, object[] data)
+public static string ${displayNameMethodName}(MethodInfo _, object[] data)
 {
-    if (data.Length > 0 && data[0] is ${caseClassName} testCase)
-    {
-        return testCase.DisplayName;
-    }
-
-    return methodInfo.Name;
+    return ((${caseClassName})data[0]).DisplayName;
 }
 
 [TestMethod]
