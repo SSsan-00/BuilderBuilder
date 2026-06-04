@@ -594,21 +594,19 @@ ${indent(constructorAssignments, 8)}
 
 private sealed class ${builderClassName}
 {
-${fieldBlock}    private bool _hasDisplayName;
-    private string _displayName = "";
+${fieldBlock}    private string _displayName = "";
 ${withMethodBlock}
     public ${builderClassName} WithDisplayName(string value)
     {
         _displayName = value;
-        _hasDisplayName = true;
         return this;
     }
 
     public ${caseClassName} Build()
     {
-        var displayName = _hasDisplayName
-            ? _displayName
-            : CreateDisplayName();
+        var displayName = string.IsNullOrEmpty(_displayName)
+            ? CreateDisplayName()
+            : _displayName;
         return new ${caseClassName}(${buildArguments});
     }
 
