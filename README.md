@@ -9,6 +9,7 @@ BuilderBuilder は、C# / MSTest の `DataRow` が横に長くなって読みに
 - MSTest の `DynamicData` 用メンバーを生成
 - テストケース用クラスと Builder クラスを生成
 - テストメソッドの引数を生成ケースオブジェクト 1 つに整理
+- テストメソッド本体は空で生成
 - `メソッド名: name=value` 形式の `DisplayName` を生成
 - パラメータ名と型を別々の入力欄で管理
 - 生成スニペットをクリップボードへコピー

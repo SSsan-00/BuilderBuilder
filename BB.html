@@ -460,10 +460,6 @@
       .replaceAll("\\", "\\\\")
       .replaceAll("\"", "\\\"");
 
-    const methodArguments = (parameters) => parameters
-      .map((parameter) => `testCase.${toPascalCase(parameter.name, "Value")}`)
-      .join(",\n");
-
     const builderChain = (parameters, builderClassName) => {
       const calls = parameters
         .map((parameter) => `.With${toPascalCase(parameter.name, "Value")}(${defaultValueFor(parameter.type)})`);
@@ -514,10 +510,6 @@
         .map((parameter) => toPrivateFieldName(parameter.name))
         .concat("displayName")
         .join(", ");
-      const callArguments = methodArguments(parameters);
-      const methodCall = callArguments
-        ? `${methodName}(\n${indent(callArguments, 8)});`
-        : `${methodName}();`;
       const dataCase = builderChain(parameters, builderClassName);
       const displayNameStatement = displayNameReturnStatement(parameters, methodName);
       const parameterSummary = parameters.length
@@ -544,9 +536,6 @@ public static string ${displayNameMethodName}(MethodInfo _, object[] data)
 [DynamicData(nameof(${dataMethodName}), DynamicDataSourceType.Method, DynamicDataDisplayName = nameof(${displayNameMethodName}))]
 public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
 {
-    var actual = ${methodCall}
-
-    Assert.Fail("TODO: expected valueを検証してください。");
 }
 
 private sealed class ${caseClassName}
