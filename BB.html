@@ -321,8 +321,8 @@
       <div class="parameters" aria-label="パラメータ">
         <div class="group-label">パラメータ</div>
         <div class="parameter-head" aria-hidden="true">
-          <div>パラメータ名</div>
           <div>型</div>
+          <div>パラメータ名</div>
           <div></div>
         </div>
         <div id="parameterList"></div>
@@ -504,7 +504,7 @@
       const withMethods = parameters.map((parameter) => {
         const propertyName = toPascalCase(parameter.name, "Value");
         const fieldName = toPrivateFieldName(parameter.name);
-        return `public ${builderClassName} With${propertyName}(${parameter.type} value)\n{\n    ${fieldName} = value;\n    return this;\n}`;
+        return `public ${builderClassName} With${propertyName}(${parameter.type} ${parameter.name})\n{\n    ${fieldName} = ${parameter.name};\n    return this;\n}`;
       }).join("\n\n");
       const buildArguments = parameters
         .map((parameter) => toPrivateFieldName(parameter.name))
@@ -620,7 +620,7 @@ ${withMethodBlock}
         removeButton.ariaLabel = "パラメータを削除";
         removeButton.dataset.index = String(index);
 
-        row.append(nameInput, typeInput, removeButton);
+        row.append(typeInput, nameInput, removeButton);
         parameterList.append(row);
       });
     };
