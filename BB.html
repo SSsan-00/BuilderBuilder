@@ -179,6 +179,11 @@
       padding: 10px 14px;
     }
 
+    .button.secondary {
+      background: transparent;
+      color: var(--accent-strong);
+    }
+
     .preview {
       display: grid;
       grid-template-rows: auto minmax(0, 1fr);
@@ -331,6 +336,7 @@
 
       <div class="actions">
         <button class="button" id="copySnippet" type="button">スニペットをコピー</button>
+        <button class="button secondary" id="clearInputs" type="button">クリア</button>
       </div>
     </section>
 
@@ -362,12 +368,19 @@
     const snippetTitle = document.querySelector("#snippetTitle");
     const status = document.querySelector("#status");
     const copyButton = document.querySelector("#copySnippet");
+    const clearButton = document.querySelector("#clearInputs");
 
-    let parameterRows = [
-      { name: "amount", type: "decimal" },
-      { name: "taxRate", type: "decimal" },
-      { name: "roundingMode", type: "MidpointRounding" }
-    ];
+    const storageKey = "builderbuilder:mstest-dynamicdata:v1";
+    const defaultState = {
+      functionName: "CalculatePrice",
+      parameterRows: [
+        { type: "string", name: "name" },
+        { type: "int", name: "num" },
+        { type: "HashMap", name: "data" }
+      ]
+    };
+
+    let parameterRows = defaultState.parameterRows.map((row) => ({ ...row }));
 
     const csharpKeywords = new Set([
       "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
@@ -382,6 +395,78 @@
       "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
       "virtual", "void", "volatile", "while"
     ]);
+
+    const cloneRows = (rows) => rows.map((row) => ({
+      type: row.type,
+      name: row.name
+    }));
+
+    const cloneState = (state) => ({
+      functionName: state.functionName,
+      parameterRows: cloneRows(state.parameterRows)
+    });
+
+    const normalizeState = (state) => {
+      const fallback = cloneState(defaultState);
+      if (!state || typeof state !== "object") {
+        return fallback;
+      }
+
+      const functionName = typeof state.functionName === "string"
+        ? state.functionName
+        : fallback.functionName;
+      const parameterRows = Array.isArray(state.parameterRows) && state.parameterRows.length
+        ? state.parameterRows.map((row) => ({
+          type: row && typeof row.type === "string" ? row.type : "",
+          name: row && typeof row.name === "string" ? row.name : ""
+        }))
+        : fallback.parameterRows;
+
+      return {
+        functionName,
+        parameterRows
+      };
+    };
+
+    const getStorage = () => {
+      try {
+        return window.localStorage;
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const loadState = () => {
+      const storage = getStorage();
+      if (!storage) {
+        return cloneState(defaultState);
+      }
+
+      const rawState = storage.getItem(storageKey);
+      if (!rawState) {
+        return cloneState(defaultState);
+      }
+
+      try {
+        return normalizeState(JSON.parse(rawState));
+      } catch (error) {
+        return cloneState(defaultState);
+      }
+    };
+
+    const currentState = () => ({
+      functionName: functionNameInput.value,
+      parameterRows: cloneRows(parameterRows)
+    });
+
+    const saveState = () => {
+      const storage = getStorage();
+      if (!storage) {
+        return;
+      }
+
+      storage.setItem(storageKey, JSON.stringify(currentState()));
+    };
 
     const sanitizeIdentifier = (value, fallback) => {
       const normalized = (value || "")
@@ -592,7 +677,7 @@ ${withMethodBlock}
 
         const nameInput = document.createElement("input");
         nameInput.value = parameter.name;
-        nameInput.placeholder = "amount";
+        nameInput.placeholder = "name";
         nameInput.autocomplete = "off";
         nameInput.ariaLabel = "パラメータ名";
         nameInput.dataset.index = String(index);
@@ -600,7 +685,7 @@ ${withMethodBlock}
 
         const typeInput = document.createElement("input");
         typeInput.value = parameter.type;
-        typeInput.placeholder = "decimal";
+        typeInput.placeholder = "string";
         typeInput.autocomplete = "off";
         typeInput.ariaLabel = "型";
         typeInput.dataset.index = String(index);
@@ -624,6 +709,14 @@ ${withMethodBlock}
       previewCode.textContent = result.code;
       snippetTitle.textContent = `${result.methodPascal} DynamicData members`;
       previewMeta.textContent = result.parameterSummary;
+    };
+
+    const applyState = (state) => {
+      const normalizedState = normalizeState(state);
+      functionNameInput.value = normalizedState.functionName;
+      parameterRows = cloneRows(normalizedState.parameterRows);
+      renderParameterRows();
+      render();
     };
 
     const copyText = async (value) => {
@@ -664,6 +757,7 @@ ${withMethodBlock}
       }
 
       parameterRows[index][field] = target.value;
+      saveState();
       render();
     });
 
@@ -684,20 +778,33 @@ ${withMethodBlock}
       }
 
       renderParameterRows();
+      saveState();
       render();
     });
 
     addParameterButton.addEventListener("click", () => {
       parameterRows.push({ name: "", type: "" });
       renderParameterRows();
+      saveState();
       render();
     });
 
-    functionNameInput.addEventListener("input", render);
+    functionNameInput.addEventListener("input", () => {
+      saveState();
+      render();
+    });
     copyButton.addEventListener("click", copySnippet);
+    clearButton.addEventListener("click", () => {
+      if (!window.confirm("入力内容を初期状態に戻しますか？")) {
+        return;
+      }
 
-    renderParameterRows();
-    render();
+      applyState(defaultState);
+      saveState();
+      setStatus("初期状態に戻しました");
+    });
+
+    applyState(loadState());
   </script>
 </body>
 </html>

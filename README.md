@@ -13,6 +13,9 @@ BuilderBuilder は、C# / MSTest の `DataRow` が横に長くなって読みに
 - `メソッド名: name=value` 形式の `DisplayName` を生成
 - `HashMap` と `HashMap<T>` の既定値は `new()` で生成
 - 型とパラメータ名を別々の入力欄で管理
+- 初期パラメータは `string name`、`int num`、`HashMap data`
+- 入力内容を `localStorage` に保存
+- 確認後に入力を初期状態へ戻すクリア機能
 - 生成スニペットをクリップボードへコピー
 
 ## 使い方
@@ -22,6 +25,8 @@ BuilderBuilder は、C# / MSTest の `DataRow` が横に長くなって読みに
 3. 型とパラメータ名を入力する。
 4. `スニペットをコピー` を押す。
 5. 既存の MSTest テストクラス内に貼り付ける。
+
+入力内容はブラウザの `localStorage` に保存されます。`クリア` を押して確認ダイアログで OK を選ぶと、初期状態に戻ります。
 
 生成スニペットは、C# ファイル側で次の `using` が利用できる前提です。
 
