@@ -118,7 +118,7 @@
     .parameter-head,
     .parameter-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+      grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
       gap: 8px;
       align-items: center;
     }
@@ -132,6 +132,19 @@
 
     .parameter-row input {
       min-width: 0;
+    }
+
+    .parameter-row {
+      border-radius: 8px;
+    }
+
+    .parameter-row.dragging {
+      opacity: 0.48;
+    }
+
+    .parameter-row.drop-target {
+      outline: 2px solid rgb(15 118 110 / 34%);
+      outline-offset: 2px;
     }
 
     .icon-button {
@@ -154,6 +167,15 @@
       border-color: var(--accent);
       color: var(--accent-strong);
       outline: none;
+    }
+
+    .drag-handle {
+      color: var(--muted);
+      cursor: grab;
+    }
+
+    .drag-handle:active {
+      cursor: grabbing;
     }
 
     .add-row {
@@ -302,7 +324,7 @@
       }
 
       .parameter-row {
-        grid-template-columns: 1fr 1fr 42px;
+        grid-template-columns: 42px 1fr 1fr 42px;
       }
     }
   </style>
@@ -326,6 +348,7 @@
       <div class="parameters" aria-label="パラメータ">
         <div class="group-label">パラメータ</div>
         <div class="parameter-head" aria-hidden="true">
+          <div></div>
           <div>型</div>
           <div>パラメータ名</div>
           <div></div>
@@ -376,11 +399,13 @@
       parameterRows: [
         { type: "string", name: "name" },
         { type: "int", name: "num" },
+        { type: "bool", name: "flg" },
         { type: "HashMap", name: "data" }
       ]
     };
 
     let parameterRows = defaultState.parameterRows.map((row) => ({ ...row }));
+    let draggedParameterIndex = null;
 
     const csharpKeywords = new Set([
       "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
@@ -406,6 +431,17 @@
       parameterRows: cloneRows(state.parameterRows)
     });
 
+    const isPreviousDefaultRows = (rows) => {
+      const previousRows = [
+        { type: "string", name: "name" },
+        { type: "int", name: "num" },
+        { type: "HashMap", name: "data" }
+      ];
+      return rows.length === previousRows.length && rows.every((row, index) => (
+        row.type === previousRows[index].type && row.name === previousRows[index].name
+      ));
+    };
+
     const normalizeState = (state) => {
       const fallback = cloneState(defaultState);
       if (!state || typeof state !== "object") {
@@ -424,7 +460,9 @@
 
       return {
         functionName,
-        parameterRows
+        parameterRows: isPreviousDefaultRows(parameterRows)
+          ? fallback.parameterRows
+          : parameterRows
       };
     };
 
@@ -674,6 +712,16 @@ ${withMethodBlock}
       parameterRows.forEach((parameter, index) => {
         const row = document.createElement("div");
         row.className = "parameter-row";
+        row.dataset.index = String(index);
+
+        const dragHandle = document.createElement("button");
+        dragHandle.className = "icon-button drag-handle";
+        dragHandle.type = "button";
+        dragHandle.textContent = "::";
+        dragHandle.title = "ドラッグして並び替え";
+        dragHandle.ariaLabel = "ドラッグして並び替え";
+        dragHandle.draggable = true;
+        dragHandle.dataset.index = String(index);
 
         const nameInput = document.createElement("input");
         nameInput.value = parameter.name;
@@ -692,14 +740,14 @@ ${withMethodBlock}
         typeInput.dataset.field = "type";
 
         const removeButton = document.createElement("button");
-        removeButton.className = "icon-button";
+        removeButton.className = "icon-button remove-parameter";
         removeButton.type = "button";
         removeButton.textContent = "-";
         removeButton.title = "パラメータを削除";
         removeButton.ariaLabel = "パラメータを削除";
         removeButton.dataset.index = String(index);
 
-        row.append(typeInput, nameInput, removeButton);
+        row.append(dragHandle, typeInput, nameInput, removeButton);
         parameterList.append(row);
       });
     };
@@ -716,6 +764,33 @@ ${withMethodBlock}
       functionNameInput.value = normalizedState.functionName;
       parameterRows = cloneRows(normalizedState.parameterRows);
       renderParameterRows();
+      render();
+    };
+
+    const clearDropTargets = () => {
+      parameterList.querySelectorAll?.(".drop-target").forEach((row) => {
+        row.classList.remove("drop-target");
+      });
+    };
+
+    const moveParameterRow = (fromIndex, toIndex) => {
+      if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) {
+        return;
+      }
+      if (fromIndex < 0 || fromIndex >= parameterRows.length) {
+        return;
+      }
+
+      const boundedToIndex = Math.max(0, Math.min(toIndex, parameterRows.length));
+      if (fromIndex === boundedToIndex || fromIndex + 1 === boundedToIndex) {
+        return;
+      }
+
+      const [parameter] = parameterRows.splice(fromIndex, 1);
+      const nextIndex = fromIndex < boundedToIndex ? boundedToIndex - 1 : boundedToIndex;
+      parameterRows.splice(nextIndex, 0, parameter);
+      renderParameterRows();
+      saveState();
       render();
     };
 
@@ -762,7 +837,7 @@ ${withMethodBlock}
     });
 
     parameterList.addEventListener("click", (event) => {
-      const target = event.target.closest("button");
+      const target = event.target.closest(".remove-parameter");
       if (!target) {
         return;
       }
@@ -780,6 +855,58 @@ ${withMethodBlock}
       renderParameterRows();
       saveState();
       render();
+    });
+
+    parameterList.addEventListener("dragstart", (event) => {
+      const handle = event.target.closest(".drag-handle");
+      if (!handle) {
+        return;
+      }
+
+      draggedParameterIndex = Number(handle.dataset.index);
+      const row = handle.closest(".parameter-row");
+      row?.classList.add("dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(draggedParameterIndex));
+      }
+    });
+
+    parameterList.addEventListener("dragover", (event) => {
+      const row = event.target.closest(".parameter-row");
+      if (!row || draggedParameterIndex === null) {
+        return;
+      }
+
+      event.preventDefault();
+      clearDropTargets();
+      row.classList.add("drop-target");
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+      }
+    });
+
+    parameterList.addEventListener("drop", (event) => {
+      const row = event.target.closest(".parameter-row");
+      if (!row || draggedParameterIndex === null) {
+        return;
+      }
+
+      event.preventDefault();
+      const targetIndex = Number(row.dataset.index);
+      const rect = row.getBoundingClientRect();
+      const isAfterTarget = event.clientY > rect.top + rect.height / 2;
+      moveParameterRow(draggedParameterIndex, targetIndex + (isAfterTarget ? 1 : 0));
+      draggedParameterIndex = null;
+      clearDropTargets();
+    });
+
+    parameterList.addEventListener("dragend", () => {
+      draggedParameterIndex = null;
+      clearDropTargets();
+      parameterList.querySelectorAll?.(".dragging").forEach((row) => {
+        row.classList.remove("dragging");
+      });
     });
 
     addParameterButton.addEventListener("click", () => {

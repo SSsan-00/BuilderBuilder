@@ -13,7 +13,8 @@ BuilderBuilder は、C# / MSTest の `DataRow` が横に長くなって読みに
 - `メソッド名: name=value` 形式の `DisplayName` を生成
 - `HashMap` と `HashMap<T>` の既定値は `new()` で生成
 - 型とパラメータ名を別々の入力欄で管理
-- 初期パラメータは `string name`、`int num`、`HashMap data`
+- 初期パラメータは `string name`、`int num`、`bool flg`、`HashMap data`
+- ドラッグ&ドロップでパラメータを並び替え
 - 入力内容を `localStorage` に保存
 - 確認後に入力を初期状態へ戻すクリア機能
 - 生成スニペットをクリップボードへコピー
@@ -23,8 +24,9 @@ BuilderBuilder は、C# / MSTest の `DataRow` が横に長くなって読みに
 1. ブラウザで `BB.html` を開く。
 2. 対象の関数名を入力する。
 3. 型とパラメータ名を入力する。
-4. `スニペットをコピー` を押す。
-5. 既存の MSTest テストクラス内に貼り付ける。
+4. 必要に応じてパラメータをドラッグ&ドロップで並び替える。
+5. `スニペットをコピー` を押す。
+6. 既存の MSTest テストクラス内に貼り付ける。
 
 入力内容はブラウザの `localStorage` に保存されます。`クリア` を押して確認ダイアログで OK を選ぶと、初期状態に戻ります。
 
@@ -41,7 +43,7 @@ using System.Reflection;
 `DisplayName` は、関数名とパラメータ値から自動生成されます。
 
 ```text
-CalculatePrice: amount=0, taxRate=0, roundingMode=ToEven
+CalculatePrice: name=Alice, num=1, flg=True, data=...
 ```
 
 ## 生成されるコード
