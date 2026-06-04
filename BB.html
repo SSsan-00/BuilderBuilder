@@ -109,13 +109,6 @@
       box-shadow: 0 0 0 3px rgb(15 118 110 / 14%);
     }
 
-    .hint {
-      margin: -2px 0 0;
-      color: var(--muted);
-      font-size: 0.8rem;
-      line-height: 1.45;
-    }
-
     .parameters {
       display: grid;
       gap: 10px;
@@ -325,12 +318,6 @@
         <input id="functionName" value="CalculatePrice" autocomplete="off">
       </div>
 
-      <div class="field">
-        <label for="displayNameTemplate">DisplayName</label>
-        <input id="displayNameTemplate" value="{method}: {parameters}" autocomplete="off">
-        <p class="hint">空欄可。`{method}`、`{parameters}`、`{amount}` のようなパラメータ名を使えます。</p>
-      </div>
-
       <div class="parameters" aria-label="パラメータ">
         <div class="group-label">パラメータ</div>
         <div class="parameter-head" aria-hidden="true">
@@ -368,7 +355,6 @@
 
   <script>
     const functionNameInput = document.querySelector("#functionName");
-    const displayNameTemplateInput = document.querySelector("#displayNameTemplate");
     const parameterList = document.querySelector("#parameterList");
     const addParameterButton = document.querySelector("#addParameter");
     const previewMeta = document.querySelector("#previewMeta");
@@ -489,21 +475,10 @@
     };
 
     const displayNameReturnStatement = (parameters, methodName) => {
-      const rawTemplate = displayNameTemplateInput.value;
-      if (!rawTemplate) {
-        return "return \"\";";
-      }
-
       const parameterSummary = parameters
         .map((parameter) => `${parameter.name}={${toPrivateFieldName(parameter.name)}}`)
         .join(", ");
-      let expression = rawTemplate
-        .replaceAll("{method}", methodName)
-        .replaceAll("{parameters}", parameterSummary);
-      parameters.forEach((parameter) => {
-        expression = expression.replaceAll(`{${parameter.name}}`, `{${toPrivateFieldName(parameter.name)}}`);
-      });
-
+      const expression = parameterSummary ? `${methodName}: ${parameterSummary}` : methodName;
       return `return $"${escapeCsharpString(expression)}";`;
     };
 
@@ -554,8 +529,10 @@
 
       const code = `public static IEnumerable<object[]> ${dataMethodName}()
 {
-    yield return Case(
-${indent(dataCase, 8)});
+    yield return new object[]
+    {
+${indent(dataCase, 8)}
+    };
 }
 
 public static string ${displayNameMethodName}(MethodInfo methodInfo, object[] data)
@@ -575,11 +552,6 @@ public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
     var actual = ${methodCall}
 
     Assert.Fail("TODO: expected valueを検証してください。");
-}
-
-private static object[] Case(${caseClassName} testCase)
-{
-    return new object[] { testCase };
 }
 
 private sealed class ${caseClassName}
@@ -744,7 +716,6 @@ ${withMethodBlock}
     });
 
     functionNameInput.addEventListener("input", render);
-    displayNameTemplateInput.addEventListener("input", render);
     copyButton.addEventListener("click", copySnippet);
 
     renderParameterRows();
