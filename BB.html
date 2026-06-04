@@ -430,8 +430,19 @@
         });
     };
 
+    const isHashMapType = (type) => {
+      const compactType = type
+        .trim()
+        .replace(/\?$/, "")
+        .replace(/\s+/g, "");
+      return /^(?:[A-Za-z_][A-Za-z0-9_]*\.)*HashMap(?:<.+>)?$/i.test(compactType);
+    };
+
     const defaultValueFor = (type) => {
       const normalized = type.replace(/\?$/, "").trim().toLowerCase();
+      if (isHashMapType(type)) {
+        return "new()";
+      }
       if (normalized === "string") {
         return "\"\"";
       }
@@ -552,9 +563,9 @@ private sealed class ${builderClassName}
 {
 ${fieldBlock}    private string _displayName = "";
 ${withMethodBlock}
-    public ${builderClassName} WithDisplayName(string value)
+    public ${builderClassName} WithDisplayName(string displayName)
     {
-        _displayName = value;
+        _displayName = displayName;
         return this;
     }
 
