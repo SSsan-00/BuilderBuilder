@@ -482,9 +482,9 @@
       const methodName = sanitizeIdentifier(functionNameInput.value, "TargetMethod");
       const methodPascal = toPascalCase(methodName, "TargetMethod");
       const parameters = uniqueParameters(parameterRows);
-      const caseClassName = `${methodPascal}Case`;
-      const builderClassName = `${methodPascal}CaseBuilder`;
-      const dataMethodName = `${methodPascal}Data`;
+      const caseClassName = `${methodPascal}TestCase`;
+      const builderClassName = `${methodPascal}TestCaseBuilder`;
+      const dataMethodName = `Get${methodPascal}TestCase`;
       const displayNameMethodName = `Get${methodPascal}DisplayName`;
       const parameterProperties = parameters.map((parameter) => {
         const propertyName = toPascalCase(parameter.name, "Value");
