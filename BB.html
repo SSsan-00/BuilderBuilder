@@ -497,18 +497,10 @@
       const builderClassName = `${methodPascal}TestCaseBuilder`;
       const dataMethodName = `Get${methodPascal}TestCase`;
       const displayNameMethodName = `Get${methodPascal}DisplayName`;
-      const parameterProperties = parameters.map((parameter) => {
-        const propertyName = toPascalCase(parameter.name, "Value");
-        return `public ${parameter.type} ${propertyName} { get; }`;
-      }).join("\n");
-      const constructorParameters = parameters
-        .map((parameter) => `${parameter.type} ${parameter.name}`)
-        .concat("string displayName")
+      const recordParameters = parameters
+        .map((parameter) => `${parameter.type} ${toPascalCase(parameter.name, "Value")}`)
+        .concat("string DisplayName")
         .join(", ");
-      const constructorAssignments = parameters.map((parameter) => {
-        const propertyName = toPascalCase(parameter.name, "Value");
-        return `${propertyName} = ${parameter.name};`;
-      }).concat("DisplayName = displayName;").join("\n");
       const fields = parameters.map((parameter) => {
         return `private ${parameter.type} ${toPrivateFieldName(parameter.name)} = ${defaultValueFor(parameter.type)};`;
       }).join("\n");
@@ -526,7 +518,6 @@
       const parameterSummary = parameters.length
         ? parameters.map((parameter) => `${parameter.name}: ${parameter.type}`).join(", ")
         : "パラメータなし";
-      const propertyBlock = parameterProperties ? `${indent(parameterProperties, 4)}\n` : "";
       const fieldBlock = fields ? `${indent(fields, 4)}\n` : "";
       const withMethodBlock = withMethods ? `\n${indent(withMethods, 4)}\n` : "";
 
@@ -549,15 +540,7 @@ public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
 {
 }
 
-private sealed class ${caseClassName}
-{
-${propertyBlock}    public string DisplayName { get; }
-
-    public ${caseClassName}(${constructorParameters})
-    {
-${indent(constructorAssignments, 8)}
-    }
-}
+private sealed record ${caseClassName}(${recordParameters});
 
 private sealed class ${builderClassName}
 {
