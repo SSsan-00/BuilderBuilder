@@ -53,8 +53,8 @@ CalculatePrice: name=Alice, num=1, flg=True, data=...
 - `public static IEnumerable<object[]> GetXxxTestCase()`
 - `public static string GetXxxDisplayName(MethodInfo _, object[] data)`
 - `[TestMethod]` と `[DynamicData(...)]`
-- `private sealed record XxxTestCase`
-- `private sealed class XxxTestCaseBuilder`
+- `public sealed record XxxTestCase`
+- `public sealed class XxxTestCaseBuilder`
 
 ## ライセンス
 

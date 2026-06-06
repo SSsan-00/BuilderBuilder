@@ -663,9 +663,9 @@ public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
 {
 }
 
-private sealed record ${caseClassName}(${recordParameters});
+public sealed record ${caseClassName}(${recordParameters});
 
-private sealed class ${builderClassName}
+public sealed class ${builderClassName}
 {
 ${fieldBlock}    private string _displayName = "";
 ${withMethodBlock}
