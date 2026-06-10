@@ -39,7 +39,7 @@
 
     .app {
       display: grid;
-      grid-template-columns: minmax(340px, 480px) minmax(0, 1fr);
+      grid-template-columns: minmax(380px, 560px) minmax(0, 1fr);
       min-height: 100vh;
     }
 
@@ -118,7 +118,7 @@
     .parameter-head,
     .parameter-row {
       display: grid;
-      grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) 42px;
+      grid-template-columns: 42px minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1fr) 42px;
       gap: 8px;
       align-items: center;
     }
@@ -324,7 +324,7 @@
       }
 
       .parameter-row {
-        grid-template-columns: 42px 1fr 1fr 42px;
+        grid-template-columns: 42px 1fr 1fr 1fr 42px;
       }
     }
   </style>
@@ -351,6 +351,7 @@
           <div></div>
           <div>型</div>
           <div>パラメータ名</div>
+          <div>初期値</div>
           <div></div>
         </div>
         <div id="parameterList"></div>
@@ -397,10 +398,10 @@
     const defaultState = {
       functionName: "CalculatePrice",
       parameterRows: [
-        { type: "string", name: "name" },
-        { type: "int", name: "num" },
-        { type: "bool", name: "flg" },
-        { type: "HashMap", name: "data" }
+        { type: "string", name: "name", initialValue: "" },
+        { type: "int", name: "num", initialValue: "" },
+        { type: "bool", name: "flg", initialValue: "" },
+        { type: "HashMap", name: "data", initialValue: "" }
       ]
     };
 
@@ -423,7 +424,8 @@
 
     const cloneRows = (rows) => rows.map((row) => ({
       type: row.type,
-      name: row.name
+      name: row.name,
+      initialValue: row.initialValue || ""
     }));
 
     const cloneState = (state) => ({
@@ -438,7 +440,9 @@
         { type: "HashMap", name: "data" }
       ];
       return rows.length === previousRows.length && rows.every((row, index) => (
-        row.type === previousRows[index].type && row.name === previousRows[index].name
+        row.type === previousRows[index].type
+        && row.name === previousRows[index].name
+        && !row.initialValue
       ));
     };
 
@@ -454,7 +458,8 @@
       const parameterRows = Array.isArray(state.parameterRows) && state.parameterRows.length
         ? state.parameterRows.map((row) => ({
           type: row && typeof row.type === "string" ? row.type : "",
-          name: row && typeof row.name === "string" ? row.name : ""
+          name: row && typeof row.name === "string" ? row.name : "",
+          initialValue: row && typeof row.initialValue === "string" ? row.initialValue : ""
         }))
         : fallback.parameterRows;
 
@@ -543,7 +548,8 @@
           rawName: row.name.trim(),
           rawType: row.type.trim(),
           name: sanitizeIdentifier(row.name, `value${index + 1}`),
-          type: row.type.trim() || "object"
+          type: row.type.trim() || "object",
+          initialValue: row.initialValue.trim()
         }))
         .filter((parameter) => parameter.rawName || parameter.rawType)
         .map((parameter) => {
@@ -590,13 +596,15 @@
       return "default";
     };
 
+    const initialValueFor = (parameter) => parameter.initialValue || defaultValueFor(parameter.type);
+
     const escapeCsharpString = (value) => value
       .replaceAll("\\", "\\\\")
       .replaceAll("\"", "\\\"");
 
     const builderChain = (parameters, builderClassName) => {
       const calls = parameters
-        .map((parameter) => `.With${toPascalCase(parameter.name, "Value")}(${defaultValueFor(parameter.type)})`);
+        .map((parameter) => `.With${toPascalCase(parameter.name, "Value")}(${initialValueFor(parameter)})`);
       if (!calls.length) {
         return `new ${builderClassName}()\n    .Build()`;
       }
@@ -625,7 +633,7 @@
         .concat("string DisplayName")
         .join(", ");
       const fields = parameters.map((parameter) => {
-        return `private ${parameter.type} ${toPrivateFieldName(parameter.name)} = ${defaultValueFor(parameter.type)};`;
+        return `private ${parameter.type} ${toPrivateFieldName(parameter.name)} = ${initialValueFor(parameter)};`;
       }).join("\n");
       const withMethods = parameters.map((parameter) => {
         const propertyName = toPascalCase(parameter.name, "Value");
@@ -739,6 +747,14 @@ ${withMethodBlock}
         typeInput.dataset.index = String(index);
         typeInput.dataset.field = "type";
 
+        const initialValueInput = document.createElement("input");
+        initialValueInput.value = parameter.initialValue || "";
+        initialValueInput.placeholder = defaultValueFor(parameter.type || "object");
+        initialValueInput.autocomplete = "off";
+        initialValueInput.ariaLabel = "初期値";
+        initialValueInput.dataset.index = String(index);
+        initialValueInput.dataset.field = "initialValue";
+
         const removeButton = document.createElement("button");
         removeButton.className = "icon-button remove-parameter";
         removeButton.type = "button";
@@ -747,7 +763,7 @@ ${withMethodBlock}
         removeButton.ariaLabel = "パラメータを削除";
         removeButton.dataset.index = String(index);
 
-        row.append(dragHandle, typeInput, nameInput, removeButton);
+        row.append(dragHandle, typeInput, nameInput, initialValueInput, removeButton);
         parameterList.append(row);
       });
     };
@@ -832,6 +848,12 @@ ${withMethodBlock}
       }
 
       parameterRows[index][field] = target.value;
+      if (field === "type") {
+        const initialValueInput = target.closest(".parameter-row")?.querySelector?.("[data-field='initialValue']");
+        if (initialValueInput) {
+          initialValueInput.placeholder = defaultValueFor(target.value || "object");
+        }
+      }
       saveState();
       render();
     });
@@ -849,7 +871,7 @@ ${withMethodBlock}
 
       parameterRows.splice(index, 1);
       if (!parameterRows.length) {
-        parameterRows.push({ name: "", type: "" });
+        parameterRows.push({ type: "", name: "", initialValue: "" });
       }
 
       renderParameterRows();
@@ -910,7 +932,7 @@ ${withMethodBlock}
     });
 
     addParameterButton.addEventListener("click", () => {
-      parameterRows.push({ name: "", type: "" });
+      parameterRows.push({ type: "", name: "", initialValue: "" });
       renderParameterRows();
       saveState();
       render();
