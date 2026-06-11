@@ -687,7 +687,7 @@ ${withMethodBlock}
     {
         var displayName = string.IsNullOrEmpty(_displayName)
             ? CreateDisplayName()
-            : _displayName;
+            : $"{_displayName}\\n{CreateDisplayName()}";
         return new ${caseClassName}(${buildArguments});
     }
 

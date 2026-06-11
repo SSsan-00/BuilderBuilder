@@ -55,6 +55,13 @@ using System.Reflection;
 CalculatePrice: name=Alice, num=1, flg=True, data=...
 ```
 
+`WithDisplayName(...)` を使った場合は、指定した値の次の行に自動生成された `DisplayName` が続きます。
+
+```text
+指定した表示名
+CalculatePrice: name=Alice, num=1, flg=True, data=...
+```
+
 ## 生成されるコード
 
 生成スニペットには次の要素が含まれます。
