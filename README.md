@@ -7,8 +7,9 @@ BuilderBuilder は、C# / MSTest の `DataRow` が横に長くなって読みに
 ## 機能
 
 - MSTest の `DynamicData` 用メンバーを生成
-- テストケース用 record と Builder クラスを生成
+- テストケース用の `XxxProps` record、ケース record、Builder クラスを生成
 - テストメソッドの引数を生成ケースオブジェクト 1 つに整理
+- 大量のプロパティは `WithProps(props => props with { ... })` に集約
 - テストメソッド本体は空で生成
 - `メソッド名: name=value` 形式の `DisplayName` を生成
 - `HashMap` と `HashMap<T>` の既定値は `new()` で生成
@@ -43,6 +44,7 @@ new()
 
 ```csharp
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 ```
@@ -69,6 +71,7 @@ CalculatePrice: name=Alice, num=1, flg=True, data=...
 - `public static IEnumerable<object[]> GetXxxTestCase()`
 - `public static string GetXxxDisplayName(MethodInfo _, object[] data)`
 - `[TestMethod]` と `[DynamicData(...)]`
+- `public sealed record XxxProps`
 - `public sealed record XxxTestCase`
 - `public sealed class XxxTestCaseBuilder`
 

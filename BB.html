@@ -531,11 +531,6 @@
         .join("") || fallback;
     };
 
-    const toPrivateFieldName = (name) => {
-      const safe = sanitizeIdentifier(name, "value").replace(/^@/, "");
-      return `_${safe.charAt(0).toLowerCase()}${safe.slice(1)}`;
-    };
-
     const indent = (value, spaces) => {
       const padding = " ".repeat(spaces);
       return value.split("\n").map((line) => line ? `${padding}${line}` : line).join("\n");
@@ -603,18 +598,23 @@
       .replaceAll("\"", "\\\"");
 
     const builderChain = (parameters, builderClassName) => {
-      const calls = parameters
-        .map((parameter) => `.With${toPascalCase(parameter.name, "Value")}(${initialValueFor(parameter)})`);
-      if (!calls.length) {
+      if (!parameters.length) {
         return `new ${builderClassName}()\n    .Build()`;
       }
 
-      return `new ${builderClassName}()\n${indent(calls.join("\n"), 4)}\n    .Build()`;
+      const assignments = parameters
+        .map((parameter, index) => {
+          const separator = index === parameters.length - 1 ? "" : ",";
+          return `${toPascalCase(parameter.name, "Value")} = ${initialValueFor(parameter)}${separator}`;
+        })
+        .join("\n");
+
+      return `new ${builderClassName}()\n    .WithProps(props => props with\n    {\n${indent(assignments, 8)}\n    })\n    .Build()`;
     };
 
     const displayNameReturnStatement = (parameters, methodName) => {
       const parameterSummary = parameters
-        .map((parameter) => `${parameter.name}={${toPrivateFieldName(parameter.name)}}`)
+        .map((parameter) => `${parameter.name}={_props.${toPascalCase(parameter.name, "Value")}}`)
         .join(", ");
       const expression = parameterSummary ? `${methodName}: ${parameterSummary}` : methodName;
       return `return $"${escapeCsharpString(expression)}";`;
@@ -624,33 +624,21 @@
       const methodName = sanitizeIdentifier(functionNameInput.value, "TargetMethod");
       const methodPascal = toPascalCase(methodName, "TargetMethod");
       const parameters = uniqueParameters(parameterRows);
+      const propsClassName = `${methodPascal}Props`;
       const caseClassName = `${methodPascal}TestCase`;
       const builderClassName = `${methodPascal}TestCaseBuilder`;
       const dataMethodName = `Get${methodPascal}TestCase`;
       const displayNameMethodName = `Get${methodPascal}DisplayName`;
-      const recordParameters = parameters
-        .map((parameter) => `${parameter.type} ${toPascalCase(parameter.name, "Value")}`)
-        .concat("string DisplayName")
-        .join(", ");
-      const fields = parameters.map((parameter) => {
-        return `private ${parameter.type} ${toPrivateFieldName(parameter.name)} = ${initialValueFor(parameter)};`;
-      }).join("\n");
-      const withMethods = parameters.map((parameter) => {
+      const propsProperties = parameters.map((parameter) => {
         const propertyName = toPascalCase(parameter.name, "Value");
-        const fieldName = toPrivateFieldName(parameter.name);
-        return `public ${builderClassName} With${propertyName}(${parameter.type} ${parameter.name})\n{\n    ${fieldName} = ${parameter.name};\n    return this;\n}`;
-      }).join("\n\n");
-      const buildArguments = parameters
-        .map((parameter) => toPrivateFieldName(parameter.name))
-        .concat("displayName")
-        .join(", ");
+        return `public ${parameter.type} ${propertyName} { get; init; } = ${initialValueFor(parameter)};`;
+      }).join("\n");
       const dataCase = builderChain(parameters, builderClassName);
       const displayNameStatement = displayNameReturnStatement(parameters, methodName);
       const parameterSummary = parameters.length
         ? parameters.map((parameter) => `${parameter.name}: ${parameter.type}`).join(", ")
         : "パラメータなし";
-      const fieldBlock = fields ? `${indent(fields, 4)}\n` : "";
-      const withMethodBlock = withMethods ? `\n${indent(withMethods, 4)}\n` : "";
+      const propsPropertyBlock = propsProperties ? `${indent(propsProperties, 4)}\n` : "";
 
       const code = `public static IEnumerable<object[]> ${dataMethodName}()
 {
@@ -671,12 +659,23 @@ public void ${methodPascal}_ReturnsExpected(${caseClassName} testCase)
 {
 }
 
-public sealed record ${caseClassName}(${recordParameters});
+public sealed record ${propsClassName}
+{
+${propsPropertyBlock}}
+
+public sealed record ${caseClassName}(${propsClassName} Props, string DisplayName);
 
 public sealed class ${builderClassName}
 {
-${fieldBlock}    private string _displayName = "";
-${withMethodBlock}
+    private ${propsClassName} _props = new();
+    private string _displayName = "";
+
+    public ${builderClassName} WithProps(Func<${propsClassName}, ${propsClassName}> configure)
+    {
+        _props = configure(_props);
+        return this;
+    }
+
     public ${builderClassName} WithDisplayName(string displayName)
     {
         _displayName = displayName;
@@ -685,10 +684,12 @@ ${withMethodBlock}
 
     public ${caseClassName} Build()
     {
+        var autoDisplayName = CreateDisplayName();
         var displayName = string.IsNullOrEmpty(_displayName)
-            ? CreateDisplayName()
-            : $"{_displayName}\\n{CreateDisplayName()}";
-        return new ${caseClassName}(${buildArguments});
+            ? autoDisplayName
+            : $"{_displayName}\\n{autoDisplayName}";
+
+        return new ${caseClassName}(_props, displayName);
     }
 
     private string CreateDisplayName()
