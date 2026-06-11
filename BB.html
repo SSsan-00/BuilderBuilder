@@ -612,12 +612,18 @@
       return `new ${builderClassName}()\n    .WithProps(props => props with\n    {\n${indent(assignments, 8)}\n    })\n    .Build()`;
     };
 
-    const displayNameReturnStatement = (parameters, methodName) => {
-      const parameterSummary = parameters
-        .map((parameter) => `${parameter.name}={_props.${toPascalCase(parameter.name, "Value")}}`)
-        .join(", ");
-      const expression = parameterSummary ? `${methodName}: ${parameterSummary}` : methodName;
-      return `return $"${escapeCsharpString(expression)}";`;
+    const displayNameStatements = (methodName) => {
+      const escapedMethodName = escapeCsharpString(methodName);
+      return `var parameterSummaries = new List<string>();
+foreach (var property in _props.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+{
+    parameterSummaries.Add($"{ToDisplayName(property.Name)}={property.GetValue(_props)}");
+}
+
+var parameterSummary = string.Join(", ", parameterSummaries);
+return string.IsNullOrEmpty(parameterSummary)
+    ? "${escapedMethodName}"
+    : $"${escapedMethodName}: {parameterSummary}";`;
     };
 
     const generateCode = () => {
@@ -634,7 +640,7 @@
         return `public ${parameter.type} ${propertyName} { get; init; } = ${initialValueFor(parameter)};`;
       }).join("\n");
       const dataCase = builderChain(parameters, builderClassName);
-      const displayNameStatement = displayNameReturnStatement(parameters, methodName);
+      const displayNameStatementBlock = displayNameStatements(methodName);
       const parameterSummary = parameters.length
         ? parameters.map((parameter) => `${parameter.name}: ${parameter.type}`).join(", ")
         : "パラメータなし";
@@ -694,7 +700,17 @@ public sealed class ${builderClassName}
 
     private string CreateDisplayName()
     {
-        ${displayNameStatement}
+${indent(displayNameStatementBlock, 8)}
+    }
+
+    private static string ToDisplayName(string propertyName)
+    {
+        if (string.IsNullOrEmpty(propertyName))
+        {
+            return propertyName;
+        }
+
+        return $"{char.ToLowerInvariant(propertyName[0])}{propertyName.Substring(1)}";
     }
 }
 `;

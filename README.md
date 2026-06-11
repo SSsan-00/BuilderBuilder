@@ -51,7 +51,7 @@ using System.Reflection;
 
 ## DisplayName
 
-`DisplayName` は、関数名とパラメータ値から自動生成されます。
+`DisplayName` は、関数名と `XxxProps` の public instance properties から自動生成されます。スニペット貼り付け後に `XxxProps` のプロパティを増減した場合も、`CreateDisplayName()` の修正は不要です。
 
 ```text
 CalculatePrice: name=Alice, num=1, flg=True, data=...
